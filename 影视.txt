@@ -1,0 +1,200 @@
+import json
+import concurrent.futures
+import requests
+# ========== 内置配置（直接在这里修改你的源） ==========
+CONFIG_JSON = r'''
+{
+  "sites": [
+    {
+      "key": "unique_my_lzi",
+      "name": "🟣 紫电·量子",
+      "type": 1,
+      "api": "https://cj.lziapi.com/api.php/provide/vod/",
+      "searchable": 1,
+      "quickSearch": 1,
+      "filterable": 1,
+      "order": 1
+    },
+    {
+      "key": "unique_my_ffzy",
+      "name": "🔵 蓝焰·非凡",
+      "type": 1,
+      "api": "http://cj.ffzyapi.com/api.php/provide/vod/",
+      "searchable": 1,
+      "quickSearch": 1,
+      "filterable": 1,
+      "order": 2
+    },
+    {
+      "key": "unique_my_bfzy",
+      "name": "🟠 橙风·暴风",
+      "type": 1,
+      "api": "https://bfzyapi.com/api.php/provide/vod/",
+      "searchable": 1,
+      "quickSearch": 1,
+      "filterable": 1,
+      "order": 3
+    },
+    {
+      "key": "unique_my_tiankong",
+      "name": "⚪ 银翼·天空",
+      "type": 1,
+      "api": "https://api.tiankongapi.com/api.php/provide/vod/",
+      "searchable": 1,
+      "quickSearch": 1,
+      "filterable": 1,
+      "order": 4
+    },
+    {
+      "key": "unique_my_wolong",
+      "name": "🟢 青龙·卧龙",
+      "type": 1,
+      "api": "https://collect.wolongzyw.com/api.php/provide/vod/",
+      "searchable": 1,
+      "quickSearch": 1,
+      "filterable": 1,
+      "order": 5
+    },
+    {
+      "key": "unique_my_jisu",
+      "name": "⚡ 疾风·极速",
+      "type": 1,
+      "api": "https://jszyapi.com/api.php/provide/vod/",
+      "searchable": 1,
+      "quickSearch": 1,
+      "filterable": 1,
+      "order": 6
+    },
+    {
+      "key": "unique_my_hongniu",
+      "name": "🔴 赤焰·红牛",
+      "type": 1,
+      "api": "https://www.hongniuzy2.com/api.php/provide/vod/",
+      "searchable": 1,
+      "quickSearch": 1,
+      "filterable": 1,
+      "order": 7
+    },
+    {
+      "key": "unique_my_dytt",
+      "name": "🎬 经典·电影天堂",
+      "type": 1,
+      "api": "http://caiji.dyttzyapi.com/api.php/provide/vod/",
+      "searchable": 1,
+      "quickSearch": 1,
+      "filterable": 1,
+      "order": 8
+    },
+    {
+      "key": "unique_my_rycj",
+      "name": "☁️ 云境·瑞云",
+      "type": 1,
+      "api": "http://cj.rycjapi.com/api.php/provide/vod/",
+      "searchable": 1,
+      "quickSearch": 1,
+      "filterable": 1,
+      "order": 9
+    },
+    {
+      "key": "unique_my_ikun",
+      "name": "🏀 坤坤·iKun",
+      "type": 1,
+      "api": "https://ikunzyapi.com/api.php/provide/vod/",
+      "searchable": 1,
+      "quickSearch": 1,
+      "filterable": 1,
+      "order": 10
+    },
+    {
+      "key": "unique_my_360",
+      "name": "🟡 三六零·360",
+      "type": 1,
+      "api": "https://360zyzz.com/api.php/provide/vod",
+      "searchable": 1,
+      "quickSearch": 1,
+      "filterable": 1,
+      "order": 11
+    },
+    {
+      "key": "unique_my_feisu",
+      "name": "🚀 光速·飞速",
+      "type": 1,
+      "api": "https://www.feisuzyapi.com/api.php/provide/vod/",
+      "searchable": 1,
+      "quickSearch": 1,
+      "filterable": 1,
+      "order": 12
+    }
+  ],
+  "lives": [
+    {
+      "name": "📺【独家】我的直播·综合",
+      "type": 0,
+      "url": "https://live.zbds.top/tv/iptv4.m3u",
+      "playerType": 1
+    },
+    {
+      "name": "📡【独家】我的直播·备用",
+      "type": 0,
+      "url": "https://tv.iill.top/m3u/Gather",
+      "playerType": 1
+    }
+  ],
+  "parses": [],
+  "flags": [
+    "电影",
+    "连续剧",
+    "综艺",
+    "动漫",
+    "纪录片"
+  ],
+  "wallpaper": "",
+  "spider": "",
+  "ads": []
+}
+'''
+CONFIG = json.loads(CONFIG_JSON)
+OUTPUT_FILE = "my_unique_config.json"
+TIMEOUT = 8
+MAX_WORKERS = 10
+TEST_KEYWORDS = ["vod", "list"]
+def check_site(site):
+    api_url = site.get("api", "")
+    if not api_url:
+        return None
+    try:
+        test_url = api_url.rstrip("/") + "/?ac=list"
+        resp = requests.get(
+            test_url,
+            timeout=TIMEOUT,
+            headers={"User-Agent": "Mozilla/5.0"}
+        )
+        if resp.status_code == 200:
+            text = resp.text
+            if any(kw in text for kw in TEST_KEYWORDS):
+                return site
+    except Exception:
+        pass
+    return None
+def main():
+    sites = CONFIG.get("sites", [])
+    print(f"共 {len(sites)} 个点播源，开始并发检测...")
+    valid_sites = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        futures = {executor.submit(check_site, s): s for s in sites}
+        for i, future in enumerate(concurrent.futures.as_completed(futures), 1):
+            result = future.result()
+            name = futures[future].get("name", "未知")
+            if result:
+                valid_sites.append(result)
+                print(f"[{i}/{len(sites)}] ✅ {name} — 可用")
+            else:
+                print(f"[{i}/{len(sites)}] ❌ {name} — 失效，已移除")
+    valid_sites.sort(key=lambda x: x.get("order", 999))
+    CONFIG["sites"] = valid_sites
+    with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
+        json.dump(CONFIG, f, ensure_ascii=False, indent=2)
+    print(f"\n完成：{len(valid_sites)}/{len(sites)} 个源通过检测")
+    print(f"输出文件：{OUTPUT_FILE}")
+if __name__ == "__main__":
+    main()
